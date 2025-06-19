@@ -59,34 +59,10 @@ function calcularIRRF(base: number) {
   return 0;
 }
 
-type RescisaoParams = {
-  salario: number;
-  meses: number;
-  avisoPrevio: boolean;
-  feriasVencidas: boolean;
-  fgts: boolean;
-  inss: boolean;
-};
-
-type SeguroDesempregoParams = {
-  salario: number;
-  qtdeParcelas: number;
-};
-
 type Mp936Params = {
   salario: number;
   percentualReducao: number;
   meses: number;
-};
-
-type ResultadoRescisao = {
-  aviso: number;
-  ferias: number;
-  decimoTerceiro: number;
-  fgtsValor: number;
-  multaFgts: number;
-  inssValor: number;
-  total: number;
 };
 
 type ResultadoSeguro = {
