@@ -122,26 +122,6 @@ function parseDateLocal(dateStr: string) {
   return new Date(year, month - 1, day); // mês começa do zero!
 }
 
-function calcularRescisao({ salario, meses, avisoPrevio, feriasVencidas, fgts, inss }: RescisaoParams): ResultadoRescisao {
-  // Cálculo simplificado para exemplo didático
-  const aviso = avisoPrevio ? salario : 0;
-  const ferias = (salario / 12) * meses + (feriasVencidas ? salario : 0);
-  const decimoTerceiro = (salario / 12) * meses;
-  const fgtsValor = fgts ? salario * 0.08 * meses : 0;
-  const multaFgts = fgts ? fgtsValor * 0.4 : 0;
-  const inssValor = inss ? salario * 0.08 * meses : 0;
-  const total = aviso + ferias + decimoTerceiro + fgtsValor + multaFgts - inssValor;
-  return {
-    aviso,
-    ferias,
-    decimoTerceiro,
-    fgtsValor,
-    multaFgts,
-    inssValor,
-    total,
-  };
-}
-
 function calcularSeguroDesemprego({ salario1, salario2, salario3 }: { salario1: number, salario2: number, salario3: number }): ResultadoSeguro {
   // Fórmula simplificada baseada em faixas de 2024
   let valorBase = salario1;
@@ -191,8 +171,8 @@ function calcularMp936({ salario, percentualReducao, meses }: Mp936Params): Resu
 }
 
 function mesesEntreDatas(dataInicio: Date, dataFim: Date) {
-  let anos = dataFim.getFullYear() - dataInicio.getFullYear();
-  let meses = dataFim.getMonth() - dataInicio.getMonth();
+  const anos = dataFim.getFullYear() - dataInicio.getFullYear();
+  const meses = dataFim.getMonth() - dataInicio.getMonth();
   let total = anos * 12 + meses;
   // Só conta o mês do afastamento se o dia do afastamento for >= dia da admissão
   if (dataFim.getDate() < dataInicio.getDate()) {
@@ -218,18 +198,12 @@ function calcularRescisaoCompleta({
   motivo,
   salario,
   avisoPrevio,
-  feriasVencidas,
-  saldoFgts,
-  dependentes,
 }: {
   dataAdmissao: string;
   dataAfastamento: string;
   motivo: MotivoRescisao;
   salario: number;
   avisoPrevio: AvisoPrevio;
-  feriasVencidas: boolean;
-  saldoFgts: number;
-  dependentes: number;
 }) {
   // Datas
   const adm = parseDateLocal(dataAdmissao);
@@ -331,38 +305,37 @@ function calcularRescisaoCompleta({
   return {
     adm,
     afs: afsOriginal,
+    ultimaDataContrato,
     motivo,
     salario,
     avisoPrevio: avisoPrevioExibicao,
-    saldoSalario,
     diasTrabalhados,
     diasMes,
+    saldoSalario,
     inssSalario,
     irrfSalario,
+    totalSalarios,
+    totalDescontosSalarios,
     decimoTerceiro,
-    meses13,
     inss13,
     irrf13,
-    // férias detalhadas
+    totalDecimoTerceiro,
+    totalDescontos13,
     valorFeriasVencidas,
     tercoFeriasVencidas,
     valorFeriasProporcionais,
-    mesesFeriasProporcionais,
     tercoFeriasProporcionais,
+    mesesFeriasProporcionais,
     totalFerias,
-    totalSalarios,
-    totalDescontosSalarios,
-    totalDecimoTerceiro,
-    totalDescontos13,
     totalOutrosVencimentos,
     totalDescontosOutros,
     totalVencimentos,
     totalDescontos,
     totalLiquido,
-    ultimaDataContrato,
-    diasAvisoPrevio,
+    avisoPrevioExibicao,
     fgtsBase,
     multaFgts,
+    meses13,
   };
 }
 
@@ -394,7 +367,7 @@ function parseHorasMinutos(h: string, m: string) {
 // Função para contar dias da semana entre duas datas
 function contarDiasSemanaNoPeriodo(diaSemana: number, inicio: Date, fim: Date) {
   let count = 0;
-  let d = new Date(inicio);
+  const d = new Date(inicio);
   while (d <= fim) {
     if (d.getDay() === diaSemana) count++;
     d.setDate(d.getDate() + 1);
@@ -416,7 +389,6 @@ function contarDiasNoMes(ano: number, mes: number) {
 
 // Função principal de cálculo de horas-extras
 function calcularHorasExtras({
-  dataAdmissao,
   dataInicio,
   dataFim,
   salario,
@@ -424,24 +396,23 @@ function calcularHorasExtras({
   adicional,
   horas,
 }: {
-  dataAdmissao: string;
   dataInicio: string;
   dataFim: string;
   salario: string;
   jornada: string;
   adicional: string;
   horas: Record<DiaSemana, { h: string; m: string }>;
-}) {
+}): ResultadoCalculoHorasExtras {
   const inicio = new Date(dataInicio);
   const fim = new Date(dataFim);
   const salarioNum = Number(salario);
   const jornadaNum = Number(jornada === "custom" ? 220 : jornada); // fallback para 220
   const adicionalNum = Number(adicional) / 100;
   const valorHoraExtra = salarioNum / jornadaNum * (1 + adicionalNum);
-  let memoria: any[] = [];
+  const memoria: ResultadoCalculoHorasExtras["memoria"] = [];
   let totalHE = 0, totalDSR = 0, totalFGTS = 0;
-  let atual = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
-  let fimMes = new Date(fim.getFullYear(), fim.getMonth(), 1);
+  const atual = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const fimMes = new Date(fim.getFullYear(), fim.getMonth(), 1);
   fimMes.setMonth(fimMes.getMonth() + 1);
   // Loop mês a mês
   while (atual < fimMes) {
@@ -453,7 +424,7 @@ function calcularHorasExtras({
     // Contar dias úteis de cada semana
     const diasSemana = [1,2,3,4,5,6]; // segunda(1) a sabado(6)
     let totalHorasMes = 0;
-    let detalhesDias: any = {};
+    const detalhesDias: Record<string, { dias: number; horasDia: number }> = {};
     diasSemana.forEach((ds, idx) => {
       const key = ["segunda","terca","quarta","quinta","sexta","sabado"][idx] as DiaSemana;
       const dias = contarDiasSemanaNoPeriodo(ds, iniMes, fimMesAtual);
@@ -501,6 +472,64 @@ function calcularHorasExtras({
   };
 }
 
+// Definir tipos explícitos para os resultados dos cálculos
+interface ResultadoCalculoRescisao {
+  adm: Date;
+  afs: Date;
+  ultimaDataContrato: Date;
+  motivo: MotivoRescisao;
+  salario: number;
+  avisoPrevio: AvisoPrevio;
+  diasTrabalhados: number;
+  diasMes: number;
+  saldoSalario: number;
+  inssSalario: number;
+  irrfSalario: number;
+  totalSalarios: number;
+  totalDescontosSalarios: number;
+  decimoTerceiro: number;
+  inss13: number;
+  irrf13: number;
+  totalDecimoTerceiro: number;
+  totalDescontos13: number;
+  valorFeriasVencidas: number;
+  tercoFeriasVencidas: number;
+  valorFeriasProporcionais: number;
+  tercoFeriasProporcionais: number;
+  mesesFeriasProporcionais: number;
+  totalFerias: number;
+  totalOutrosVencimentos: number;
+  totalDescontosOutros: number;
+  totalVencimentos: number;
+  totalDescontos: number;
+  totalLiquido: number;
+  avisoPrevioExibicao: AvisoPrevio;
+  fgtsBase: number;
+  multaFgts: number;
+  meses13: number;
+}
+interface ResultadoCalculoHorasExtras {
+  memoria: Array<{
+    mes: string;
+    salario: number;
+    valorHoraExtra: number;
+    detalhesDias: Record<string, { dias: number; horasDia: number }>;
+    totalHorasMes: number;
+    valorHE: number;
+    dsr: number;
+    fgts: number;
+    totalMes: number;
+  }>;
+  totalHE: number;
+  totalDSR: number;
+  totalFGTS: number;
+  reflexoFerias: number;
+  fgtsFerias: number;
+  reflexo13: number;
+  fgts13: number;
+  totalGeral: number;
+}
+
 export default function TrabalhistasPrevidenciarios() {
   const [tab, setTab] = useState("rescisao");
   const [showExplicacaoFerias, setShowExplicacaoFerias] = useState(false);
@@ -511,10 +540,8 @@ export default function TrabalhistasPrevidenciarios() {
     salario: "",
     avisoPrevio: avisos[0],
     feriasVencidas: false,
-    saldoFgts: "",
-    dependentes: "0",
   });
-  const [resultado, setResultado] = useState<any>(null);
+  const [resultado, setResultado] = useState<ResultadoCalculoRescisao | null>(null);
   // Seguro-Desemprego
   const [seguro, setSeguro] = useState({
     salario1: "",
@@ -552,7 +579,7 @@ export default function TrabalhistasPrevidenciarios() {
       sabado: { h: "", m: "" },
     },
   });
-  const [resHorasExtras, setResHorasExtras] = useState<any>(null);
+  const [resHorasExtras, setResHorasExtras] = useState<ResultadoCalculoHorasExtras | null>(null);
 
   // Calcular meses completos para liberar férias vencidas
   let mesesCompletos = 0;
@@ -566,7 +593,7 @@ export default function TrabalhistasPrevidenciarios() {
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const target = e.target as HTMLInputElement | HTMLSelectElement;
-    const { name, value, type } = target;
+    const { name, value } = target;
     if (name === "feriasVencidas") {
       setForm((f) => ({ ...f, feriasVencidas: !f.feriasVencidas }));
     } else {
@@ -586,7 +613,7 @@ export default function TrabalhistasPrevidenciarios() {
   function handleHorasExtras(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
     if (name.startsWith("horas-")) {
-      const [_, dia, tipo] = name.split("-");
+      const [, dia, tipo] = name.split("-");
       const diaSemana = dia as DiaSemana;
       setHorasExtras((prev) => ({
         ...prev,
@@ -611,9 +638,6 @@ export default function TrabalhistasPrevidenciarios() {
       motivo: form.motivo as MotivoRescisao,
       salario: Number(form.salario),
       avisoPrevio: form.avisoPrevio as AvisoPrevio,
-      feriasVencidas: form.feriasVencidas,
-      saldoFgts: Number(form.saldoFgts),
-      dependentes: Number(form.dependentes),
     });
     setResultado(res);
   }
@@ -732,14 +756,6 @@ export default function TrabalhistasPrevidenciarios() {
                     {!podeFeriasVencidas && (
                       <span className="text-xs text-gray-500">Só é possível ter férias vencidas após 12 meses completos de trabalho.</span>
                     )}
-                  </label>
-                  <label className="flex flex-col gap-1 text-black">
-                    Saldo de FGTS anterior (R$):
-                    <input type="number" name="saldoFgts" value={form.saldoFgts} onChange={handleChange} min={0} step={0.01} className="rounded border px-2 py-1 text-black" />
-                  </label>
-                  <label className="flex flex-col gap-1 text-black">
-                    Número de dependentes:
-                    <input type="number" name="dependentes" value={form.dependentes} onChange={handleChange} min={0} step={1} className="rounded border px-2 py-1 text-black" />
                   </label>
                   <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-2">Calcular</button>
                 </form>
@@ -878,7 +894,7 @@ export default function TrabalhistasPrevidenciarios() {
                     <div className="mt-4 text-black text-sm">
                       <b>Memória de Cálculo:</b>
                       <ul className="mb-2">
-                        {resHorasExtras.memoria.map((m: any, i: number) => (
+                        {resHorasExtras.memoria.map((m, i: number) => (
                           <li key={i} className="mb-2">
                             <b>Mês:</b> {m.mes}<br />
                             Salário: R$ {m.salario.toFixed(2)}<br />
